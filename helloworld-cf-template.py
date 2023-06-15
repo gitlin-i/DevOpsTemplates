@@ -11,8 +11,19 @@ from troposphere import (
     
     
 )
+from ipaddress import ip_network
+import requests
+def get_public_ip():
+    try:
+        response = requests.get('https://api.ipify.org?format=json')
+        data = response.json()
+        public_ip = data['ip']
+        return public_ip
+    except requests.RequestException:
+        return "110.8.204.148/32"
 
 ApplicationPort = "3000"
+PublicCidrIp = get_public_ip()
 
 t = Template()
 
@@ -31,7 +42,7 @@ t.add_resource(ec2.SecurityGroup(
             IpProtocol="tcp",
             FromPort="22",
             ToPort="22",
-            CidrIp="0.0.0.0/0",
+            CidrIp=PublicCidrIp,
         ),
         ec2.SecurityGroupRule(
             IpProtocol="tcp",
@@ -48,25 +59,9 @@ ud = Base64(Join('\n',[
     ". ~/.nvm/nvm.sh",
     "nvm install --lts",
     "wget http://bit.ly/2vESNuc -O /home/ec2-user/helloworld.js",
-    "echo " + '"'+ 
-"""
-[Unit]
-Description=Hello World Daemon
-After=network-online.target
-
-[Service]
-User=ec2-user
-ExecStart=/usr/bin/node /home/ec2-user/helloworld.js
-Restart=always
-RestartSec=3
-StartLimitInterval=0
-
-[Install]
-WantedBy=multi-user.target
-""" + '"'+ "> /etc/systemd/system/helloworld.service",
-"sudo systemctl enable helloworld.service",
-"sudo systemctl start helloworld.service",
-
+    "sudo wget https://raw.githubusercontent.com/gitlin-i/DevOpsTemplates/main/helloworld.txt -O /etc/systemd/system/helloworld.service",
+    "sudo systemctl enable helloworld.service",
+    "sudo systemctl start helloworld.service",
 ]))
 
 t.add_resource(ec2.Instance(
